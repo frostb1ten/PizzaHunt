@@ -23,7 +23,7 @@ async fn main() -> Result<()> {
                 let client = reqwest::Client::builder()
                     .danger_accept_invalid_certs(true)
                     .build()?;
-                let website = ip.replace("Bugbounty","Frostb1te\"Bugbounty");
+                let website = ip.replace("Bugbounty","RustScan\"Bugbounty");
                 let res = client
                     .get(website.clone())
                     .send()
@@ -34,7 +34,7 @@ async fn main() -> Result<()> {
                 };
                 if res.status() == 200 {
                     let body = res.text().await?;
-                    if body.contains("frostb1te\"bugbounty") {
+                    if body.contains("RustScan\"bugbounty") {
                         let mut file = fs::OpenOptions::new()
                             .write(true)
                             .append(true)
@@ -44,12 +44,12 @@ async fn main() -> Result<()> {
                         write!(file, "{}", website)?;
                         println!("XSS likely in (double quote) {}", website);
                     }
-                    let website2 = ip.replace("Bugbounty","Frostb1te\'Bugbounty");
+                    let website2 = ip.replace("Bugbounty","RustScan\'Bugbounty");
                     let _res = client
                         .get(website2.clone())
                         .send()
                         .await?;
-                    if body.contains("frostb1te\'bugbounty") {
+                    if body.contains("RustScan\'bugbounty") {
                         let mut file = fs::OpenOptions::new()
                             .write(true)
                             .append(true)
