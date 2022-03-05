@@ -5,7 +5,7 @@ https://github.com/devanshbatham/ParamSpider
 ```
 python3 ./paramspider.py -d WEBSITE.com -p Bugbounty --exclude js,jpg,png,css,woff,ttf,svg,ashx,gif,svg,pdf --subs false -o ./hosts.txt
 ```
-and then run the RustScan in the same directory as hosts.txt
+Run the RustScan in the same directory as hosts.txt generated from ParamSpider.
 
 
 <h2>Compiled version at https://github.com/frostb1ten/RustScan/raw/main/RustScan.7z</h2>
