@@ -1,5 +1,5 @@
 [package]
-name = "Rust_Scan"
+name = "RustScan"
 version = "0.1.0"
 edition = "2021"
 
