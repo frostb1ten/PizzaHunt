@@ -58,6 +58,7 @@ async fn main() -> Result<()> {
                             .unwrap();
                         write!(file, "{}", website2)?;
                         println!("XSS likely in (Single quote) {}", website);
+                    }
                     if body.contains("ORA-") {
                         let mut file = fs::OpenOptions::new()
                             .write(true)
@@ -80,7 +81,6 @@ async fn main() -> Result<()> {
                         }
                     }
                 }
-            }
         }
     }
     Ok(())
