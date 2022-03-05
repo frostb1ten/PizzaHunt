@@ -1,5 +1,5 @@
 # RustScan
-Scans for indications of an XSS, Oracle SQLi and filters out words containing MySQL. Best used along side ParamSpider found at
+Scans for indications of an XSS vuln, Oracle SQLi and filters out words containing MySQL. Best used along side ParamSpider found at
 https://github.com/devanshbatham/ParamSpider
 
 ```
