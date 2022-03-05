@@ -10,9 +10,11 @@ and then run the RustScan in the same directory as hosts.txt
 
 <h1>To compile</h1>
 ```
+
 git clone https://github.com/frostb1ten/RustScan.git
 cd RustScan
 cargo build
+
 ```
 <h2>Compiled version at https://github.com/frostb1ten/RustScan/raw/main/RustScan.7z</h2>
 
