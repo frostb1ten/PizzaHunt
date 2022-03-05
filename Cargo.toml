@@ -1,4 +1,3 @@
-#![allow(non_snake_case)]
 [package]
 name = "RustScan"
 version = "0.1.0"
