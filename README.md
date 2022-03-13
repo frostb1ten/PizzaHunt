@@ -1,4 +1,4 @@
-# RustScan
+# BugHunter
 Scans for indications of an XSS vuln (Double quote escapes) , Oracle SQLi (ORA- in response), filters out url responses containing MySQL, redirect in url and more!
 
 How to compile
