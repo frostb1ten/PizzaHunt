@@ -1,11 +1,19 @@
 #![allow(non_snake_case)]
 #![allow(unused_variables)]
+
 use error_chain::error_chain;
 use std::fs;
-use std::io::Write;
-use std::io::{BufRead};
 use std::time::Duration;
-
+use std::env;
+use regex::Regex;
+use std::str;
+use fancy_regex::Regex as OtherRegex;
+use std::path::Path;
+use std::{
+    collections::BTreeSet,
+    fs::File,
+    io::{BufRead, BufReader, Write},
+};
 
 error_chain! {
     foreign_links {
@@ -13,28 +21,68 @@ error_chain! {
         HttpRequest(reqwest::Error);
     }
 }
-
 #[tokio::main]
 async fn main() -> Result<()> {
-    println!("Starting!");
-    let client = reqwest::Client::builder()
-        .danger_accept_invalid_certs(true)
-        .build()?;
-    for line in std::fs::read("./hosts.txt").expect("Could not read file").lines() {
-        if let Ok(ip) = line {
-            let website = ip.replace("Bugbounty","RustScan\"Bugbounty");
-            println!("{}", website);
+    println!("Gathering parameters... Please wait.");
+    if Path::new("./paramspider.txt").exists() {
+        fs::remove_file("./paramspider.txt")?;
+    }
+    fs::create_dir_all("./analysis")?;
+    let args: Vec<String> = env::args().collect();
+    let domain = &args[1];
+    let u = r"https://web.archive.org/cdx/search/cdx?url=".to_owned() + domain + "/*&output=txt&fl=original&collapse=urlkey&page=/";
+    let response = reqwest::get(u).await?;
+    let response = response.text().await?;
+    let re = Regex::new(r"^.?^.*=").unwrap();
+    for line in response.lines() {
+        let lines = line.to_string();
+        let replace = OtherRegex::new(r"\=(.*)").unwrap();
+        let website = replace.replace_all(&lines, "=RustScan\"Bugbounty").to_string();
+        if re.is_match(&website) {
+            //Write urls to paramspider.txt
+            let mut file = fs::OpenOptions::new()
+                .write(true)
+                .append(true)
+                .create(true)
+                .open("./paramspider.txt")
+                .unwrap();
+            write!(file, "{}\n", website)?;
+        }
+    }
+    let file = File::open("./paramspider.txt").expect("file error");
+    let reader = BufReader::new(file);
+
+    let lines: BTreeSet<_> = reader
+        .lines()
+        .map(|l| l.expect("Couldn't read a line"))
+        .collect();
+
+    let mut file = File::create("./paramspider.txt").expect("file error");
+
+    for line in lines {
+        file.write_all(line.as_bytes())
+            .expect("Couldn't write to file");
+
+        file.write_all(b"\n").expect("Couldn't write to file");
+    }
+    //connect to website
+    for line in std::fs::read("./paramspider.txt").expect("Could not read file").lines() {
+        let client = reqwest::Client::builder()
+            .danger_accept_invalid_certs(true)
+            .build()?;
+        if let Ok(website) = line {
             let res = client
                 .get(&website)
-                .timeout(Duration::from_secs(5))
+                .timeout(Duration::from_secs(10))
                 .send();
             let res = match res.await {
                 Ok(v) => v,
                 Err(_) => {
-                    continue
-                },
+                    continue;
+                }
             };
             if res.status() == 200 {
+                println!("CONNECTED: {}", &website);
                 let body = res.text().await?;
                 let mut file = fs::OpenOptions::new()
                     .write(true)
