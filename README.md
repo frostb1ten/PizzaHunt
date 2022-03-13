@@ -2,10 +2,17 @@
 Scans for indications of an XSS vuln, Oracle SQLi and filters out words containing MySQL. Best used along side ParamSpider found at
 https://github.com/devanshbatham/ParamSpider
 
+How to compile
 ```
-python3 ./paramspider.py -d WEBSITE.com -p Bugbounty --exclude js,jpg,png,css,woff,ttf,svg,ashx,gif,svg,pdf --subs false -o ./hosts.txt
+git clone https://github.com/frostb1ten/RustScan.git
+cd RustScan
+cargo build --release
 ```
-Run the RustScan in the same directory as hosts.txt generated from ParamSpider.
+
+How to run
+```
+./RustScan DOMAIN.com
+```
 
 
 <h2>Compiled version at https://github.com/frostb1ten/RustScan/releases/</h2>
