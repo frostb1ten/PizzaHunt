@@ -1,4 +1,4 @@
-<h1 align="center">PizzaHunt</h1> A tool to out pizza the hunt.
+<h1 align="center">PizzaHunt</h1> <p align="center">A tool to out pizza the hunt.</p>
 
 <p align="center">
   <img width="200" src="https://user-images.githubusercontent.com/68353531/158382636-dc504b50-c738-495d-9292-147706085005.png" alt="Material Bread logo">
