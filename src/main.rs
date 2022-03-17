@@ -37,7 +37,7 @@ async fn main() -> Result<()> {
     for line in response.lines() {
         let lines = line.to_string();
         let replace = OtherRegex::new(r"\=(.*)").unwrap();
-        let website = replace.replace_all(&lines, "=RustScan\"Bugbounty").to_string();
+        let website = replace.replace_all(&lines, "=PizzaHunt\">Bugbounty").to_string();
         if re.is_match(&website) {
             //Write urls to paramspider.txt
             let mut file = fs::OpenOptions::new()
@@ -91,7 +91,7 @@ async fn main() -> Result<()> {
                     .open("./analysis/live_sites.txt")
                     .unwrap();
                 write!(file, "{}\n", website)?;
-                if body.contains("RustScan\"Bugbounty") {
+                if body.contains("PizzaHunt\">Bugbounty") {
                     let mut file = fs::OpenOptions::new()
                         .write(true)
                         .append(true)
