@@ -25,4 +25,4 @@ How to run
 
 
 <h3>PizzaHunt image and naming credit goes to whisp3r :)</h3>
-<h3>***This tool is for VDP/Bugbounty useage only. We are not liable for any damages or trouble caused by this scanner.***</h3>
+<h3>***This tool is for VDP/Bugbounty usage only. We are not liable for any damages or trouble caused by this scanner.***</h3>
