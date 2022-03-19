@@ -34,19 +34,22 @@ async fn main() -> Result<()> {
     let response = reqwest::get(u).await?;
     let response = response.text().await?;
     let re = Regex::new(r"^.?^.*=").unwrap();
+    let re2 = Regex::new(r".jpg|.png.|.js").unwrap();
     for line in response.lines() {
         let lines = line.to_string();
         let replace = OtherRegex::new(r"\=(.*)").unwrap();
         let website = replace.replace_all(&lines, "=PizzaHunt\">Bugbounty").to_string();
         if re.is_match(&website) {
-            //Write urls to paramspider.txt
-            let mut file = fs::OpenOptions::new()
-                .write(true)
-                .append(true)
-                .create(true)
-                .open("./paramspider.txt")
-                .unwrap();
-            write!(file, "{}\n", website)?;
+            if !re2.is_match(&website) {
+                //Write urls to paramspider.txt
+                let mut file = fs::OpenOptions::new()
+                    .write(true)
+                    .append(true)
+                    .create(true)
+                    .open("./paramspider.txt")
+                    .unwrap();
+                write!(file, "{}\n", website)?;
+            }
         }
     }
     let file = File::open("./paramspider.txt").expect("file error");
