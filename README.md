@@ -11,7 +11,7 @@ Scans for indications of an XSS vuln (Double quote escapes) , Oracle SQLi (ORA- 
 How to compile
 ```
 Install Rust using RustUp from https://rustup.rs/
-sudo apt-get install pkg-config
+sudo apt-get install pkg-config libssl-dev
 rustup update
 git clone https://github.com/frostb1ten/PizzaHunt.git
 cd PizzaHunt
