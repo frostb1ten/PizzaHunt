@@ -16,6 +16,7 @@ rustup update
 git clone https://github.com/frostb1ten/PizzaHunt.git
 cd PizzaHunt
 cargo build --release
+cd /target/release/
 ```
 
 How to run
