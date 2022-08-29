@@ -72,6 +72,7 @@ async fn main() -> Result<()> {
     for line in std::fs::read("./paramspider.txt").expect("Could not read file").lines() {
         let client = reqwest::Client::builder()
             .danger_accept_invalid_certs(true)
+            .user_agent("Mozilla/5.0 (Windows NT x.y; rv:10.0) Gecko/20100101 Firefox/10.0")
             .build()?;
         if let Ok(website) = line {
             let res = client
@@ -81,11 +82,10 @@ async fn main() -> Result<()> {
             let res = match res.await {
                 Ok(v) => v,
                 Err(_) => {
-                    continue;
-                }
+                    continue; }
             };
+            println!("{} : {}", res.status(), website);
             if res.status() == 200 {
-                println!("CONNECTED: {}", &website);
                 let body = res.text().await?;
                 let mut file = fs::OpenOptions::new()
                     .write(true)
