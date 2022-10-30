@@ -23,7 +23,12 @@ How to run
 ```
 ./PizzaHunt DOMAIN.com
 ```
-
+For the beta Pizzahunt2.exe
+```
+./PizzaHunt2 -s DOMAIN.com
+or
+./PizzaHunt2 -l list.txt
+```
 
 <h2>Compiled version at https://github.com/frostb1ten/PizzaHunt/releases/</h2>
 
