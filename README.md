@@ -21,10 +21,6 @@ cd /target/release/
 
 How to run
 ```
-./PizzaHunt DOMAIN.com
-```
-For the beta Pizzahunt2.exe
-```
 ./PizzaHunt2 -s DOMAIN.com
 or
 ./PizzaHunt2 -l list.txt
