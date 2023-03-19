@@ -21,9 +21,9 @@ cd /target/release/
 
 How to run
 ```
-./PizzaHunt2 -s DOMAIN.com
+./PizzaHunt -s DOMAIN.com
 or
-./PizzaHunt2 -l list.txt
+./PizzaHunt -l list.txt
 ```
 
 <h2>Compiled version at https://github.com/frostb1ten/PizzaHunt/releases/</h2>
