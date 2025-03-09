@@ -126,7 +126,6 @@ async fn analyze_urls(urls: Vec<String>) -> Result<()> {
     let mut ssti = BufWriter::new(File::create("./analysis/SSTI.txt")?);
     let mut redirects = BufWriter::new(File::create("./analysis/redirects.txt")?);
     let mut mysql_errors = BufWriter::new(File::create("./analysis/MysqlOutput.txt")?);
-    let mut wfserver = BufWriter::new(File::create("./analysis/WFSServer.txt")?);
     let mut perl = BufWriter::new(File::create("./analysis/Perl.txt")?);
     let mut cgi = BufWriter::new(File::create("./analysis/cgi.txt")?);
     let mut errors = BufWriter::new(File::create("./analysis/error.txt")?);
