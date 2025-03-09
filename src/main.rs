@@ -125,6 +125,15 @@ async fn analyze_urls(urls: Vec<String>) -> Result<()> {
     let mut xss = BufWriter::new(File::create("./analysis/XSS.txt")?);
     let mut ssti = BufWriter::new(File::create("./analysis/SSTI.txt")?);
     let mut redirects = BufWriter::new(File::create("./analysis/redirects.txt")?);
+    let mut mysql_errors = BufWriter::new(File::create("./analysis/MysqlOutput.txt")?);
+    let mut wfserver = BufWriter::new(File::create("./analysis/WFSServer.txt")?);
+    let mut perl = BufWriter::new(File::create("./analysis/Perl.txt")?);
+    let mut cgi = BufWriter::new(File::create("./analysis/cgi.txt")?);
+    let mut errors = BufWriter::new(File::create("./analysis/error.txt")?);
+    let mut php_source = BufWriter::new(File::create("./analysis/phpsource.txt")?);
+    let mut binaries = BufWriter::new(File::create("./analysis/bins.txt")?);
+    let mut exec = BufWriter::new(File::create("./analysis/wtflol.txt")?);
+    let mut eval = BufWriter::new(File::create("./analysis/eval.txt")?);
 
     for website in urls {
         let res = client.get(&website).send().await;
@@ -142,7 +151,7 @@ async fn analyze_urls(urls: Vec<String>) -> Result<()> {
 
         if body.contains("PizzaHunt\">Bugbounty") {
             writeln!(xss, "{}", website)?;
-            println!("XSS likely in (double quote) {}", website);
+            println!("XSS likely in {}", website);
         }
 
         if body.contains("Bugbounty9") {
@@ -161,85 +170,49 @@ async fn analyze_urls(urls: Vec<String>) -> Result<()> {
             writeln!(redirects, "{}", website)?;
             println!("Possible open redirect {}", website);
         }
-if website.contains("WFSServer") {
-                let mut file = fs::OpenOptions::new()
-                    .write(true)
-                    .append(true)
-                    .create(true)
-                    .open("./analysis/WFSServer.txt").unwrap();
-                write!(file, "{}\n", website)?;
-            }
-            if website.contains(".pl") {
-                let mut file = fs::OpenOptions::new()
-                    .write(true)
-                    .append(true)
-                    .create(true)
-                    .open("./analysis/Perl.txt")
-                    .unwrap();
-                write!(file, "{}\n", website)?;
-            }
-            if website.contains(".cgi") {
-                let mut file = fs::OpenOptions::new()
-                    .write(true)
-                    .append(true)
-                    .create(true)
-                    .open("./analysis/cgi.txt")
-                    .unwrap();
-                write!(file, "{}\n", website)?;
-            }
-            if body.contains("Error") {
-                let mut file = fs::OpenOptions::new()
-                    .write(true)
-                    .append(true)
-                    .create(true)
-                    .open("./analysis/error.txt").unwrap();
-                write!(file, "{}\n", website)?;
-            }
-            if body.contains(" <?php") {
-                let mut file = fs::OpenOptions::new()
-                    .write(true)
-                    .append(true)
-                    .create(true)
-                    .open("./analysis/phpsource.txt").unwrap();
-                write!(file, "{}\n", website)?;
-            }
-            if website.contains(" - bin") {
-                let mut file = fs::OpenOptions::new()
-                    .write(true)
-                    .append(true)
-                    .create(true)
-                    .open("./analysis/bins.txt").unwrap();
-                write!(file, "{}\n", website)?;
-            }
-            if body.contains("exec($_GET") {
-                let mut file = fs::OpenOptions::new()
-                    .write(true)
-                    .append(true)
-                    .create(true)
-                    .open("./analysis/wtflol.txt").unwrap();
-                println!("Param fed into exec at {}", website);
-                write!(file, "{}\n", website)?;
-            }
-            if body.contains("eval($_GET") {
-                let mut file = fs::OpenOptions::new()
-                    .write(true)
-                    .append(true)
-                    .create(true)
-                    .open("./analysis/eval.txt").unwrap();
-                println!("Param fed into eval fn at {}", website);
-                write!(file, "{}\n", website)?;
-            }
-            let sql_errors = ["SQL syntax", "MariaDB server version", "syntax to use near", "SyntaxError", "unterminated quoted string", "Microsoft Access Driver", "Access Database Engine", "ORA-", "Oracle error", "Microsoft OLE DB", "CLI Driver", "DB2 SQL error", "SQLite/JDBCDriver", "System.Data.SQLite.SQLiteException", "OLE DB", "odbc_"];
-            if sql_errors.iter().any(|e| body.contains(e)) {
-                let mut file = fs::OpenOptions::new()
-                    .write(true)
-                    .append(true)
-                    .create(true)
-                    .open("./analysis/MysqlOutput.txt")
-                    .unwrap();
-                write!(file, "{}\n", website)?;
-                println!("SQL Error found in {}\r\n", website);
-            }
+
+        if website.contains(".pl") {
+            writeln!(perl, "{}", website)?;
         }
+
+        if website.contains(".cgi") {
+            writeln!(cgi, "{}", website)?;
+        }
+
+        if body.contains("Error") {
+            writeln!(errors, "{}", website)?;
+        }
+
+        if body.contains("<?php") {
+            writeln!(php_source, "{}", website)?;
+        }
+
+        if website.contains("-bin") {
+            writeln!(binaries, "{}", website)?;
+        }
+
+        if body.contains("exec($_GET") || body.contains("exec($_POST") {
+            writeln!(exec, "{}", website)?;
+            println!("Potential command execution vulnerability at {}", website);
+        }
+        
+        if body.contains("eval($_GET") || body.contains("eval($_POST") {
+            writeln!(eval, "{}", website)?;
+            println!("Potential eval-based vulnerability at {}", website);
+        }
+
+        let sql_errors = [
+            "SQL syntax", "MariaDB server version", "syntax to use near", "SyntaxError",
+            "unterminated quoted string", "Microsoft Access Driver", "Access Database Engine",
+            "ORA-", "Oracle error", "Microsoft OLE DB", "CLI Driver", "DB2 SQL error",
+            "SQLite/JDBCDriver", "System.Data.SQLite.SQLiteException", "OLE DB", "odbc_"
+        ];
+
+        if sql_errors.iter().any(|e| body.contains(e)) {
+            writeln!(mysql_errors, "{}", website)?;
+            println!("SQL Error found in {}", website);
+        }
+    }
+
     Ok(())
 }
