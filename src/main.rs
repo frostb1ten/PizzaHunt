@@ -1,66 +1,73 @@
 #![allow(non_snake_case)]
-#![allow(unused_variables)]
 
-use error_chain::error_chain;
+use anyhow::Result;
 use regex::Regex;
-use fancy_regex::Regex as OtherRegex;
+use colored::*;
+
 use std::{
     collections::BTreeSet,
     env,
-    fs::{self, File},
+    fs::{self, File, OpenOptions},
     io::{BufRead, BufReader, BufWriter, Write},
     path::Path,
 };
 
-error_chain! {
-    foreign_links {
-        Io(std::io::Error);
-        HttpRequest(reqwest::Error);
-    }
-}
-
 #[tokio::main]
 async fn main() -> Result<()> {
-    fs::create_dir_all("./analysis").expect("Failed to create the directory analysis");
+    fs::create_dir_all("./analysis")?;
 
     let args: Vec<String> = env::args().collect();
-
     if args.len() < 2 {
         println!(
-            "Usage: PizzaHunt.exe -s <domain> OR -l <file>\n\
-            Example: PizzaHunt.exe -s example.com\n\
-            Example: PizzaHunt.exe -l domains.txt"
+            "Usage: PizzaHunt.exe -s <domain> OR -l <file> [--proxy <proxy_url>]\n\
+             Example: PizzaHunt.exe -s example.com\n \
+             Example: PizzaHunt.exe -l domains.txt\n \
+             Example: PizzaHunt.exe -s example.com --proxy http://127.0.0.1:8080"
         );
         return Ok(());
     }
 
-    let domains = match args[1].as_str() {
-        "-s" => {
-            if args.len() < 3 {
-                eprintln!("Error: Missing domain after '-s'");
+    let mut proxy_url = None;
+    let mut domains = Vec::new();
+    let mut i = 1;
+
+    while i < args.len() {
+        match args[i].as_str() {
+            "-s" => {
+                if i + 1 >= args.len() {
+                    eprintln!("Missing domain after '-s'");
+                    return Ok(());
+                }
+                domains.push(args[i + 1].clone());
+                i += 1;
+            }
+            "-l" => {
+                if i + 1 >= args.len() {
+                    eprintln!("Missing file after '-l'");
+                    return Ok(());
+                }
+                let file = File::open(&args[i + 1])?;
+                domains.extend(BufReader::new(file).lines().filter_map(|line| line.ok()));
+                i += 1;
+            }
+            "--proxy" => {
+                if i + 1 >= args.len() {
+                    eprintln!("Missing proxy URL after '--proxy'");
+                    return Ok(());
+                }
+                proxy_url = Some(args[i + 1].clone());
+                i += 1;
+            }
+            _ => {
+                eprintln!("Invalid option: {}", args[i]);
                 return Ok(());
             }
-            vec![args[2].clone()]
         }
-        "-l" => {
-            if args.len() < 3 {
-                eprintln!("Error: Missing file name after '-l'");
-                return Ok(());
-            }
-            let file = File::open(&args[2])?;
-            BufReader::new(file)
-                .lines()
-                .map(|l| l.expect("Couldn't read a line"))
-                .collect()
-        }
-        _ => {
-            eprintln!("Invalid option. Use -s for a single domain or -l for a list of domains.");
-            return Ok(());
-        }
-    };
+        i += 1;
+    }
 
     for domain in domains {
-        if let Err(e) = process_domain(domain).await {
+        if let Err(e) = process_domain(domain, proxy_url.clone()).await {
             eprintln!("Error processing domain: {}", e);
         }
     }
@@ -68,18 +75,28 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-async fn process_domain(domain: String) -> Result<()> {
+fn ensure_https(url: String) -> String {
+    if url.starts_with("http://") {
+        url.replacen("http://", "https://", 1)
+    } else if !url.starts_with("https://") {
+        format!("https://{}", url)
+    } else {
+        url
+    }
+}
+
+async fn process_domain(domain: String, proxy_url: Option<String>) -> Result<()> {
     let urls = gather_urls(&domain).await?;
-    let deduplicated_urls = deduplicate_urls(urls);
-    analyze_urls(deduplicated_urls).await
+    let deduped = deduplicate_urls(urls).into_iter().map(ensure_https).collect();
+    analyze_urls(deduped, proxy_url).await
 }
 
 async fn gather_urls(domain: &str) -> Result<Vec<String>> {
     if Path::new("./paramspider.txt").exists() {
-        fs::remove_file("./paramspider.txt").expect("Failed to remove paramspider.txt");
+        fs::remove_file("./paramspider.txt")?;
     }
 
-    println!("Gathering parameters for {}... Please wait.", domain);
+    println!("Gathering parameters for {}...", domain);
 
     let wayback_url = format!(
         "https://web.archive.org/cdx/search/cdx?url={}/*&output=txt&fl=original&collapse=urlkey&page=/",
@@ -92,126 +109,105 @@ async fn gather_urls(domain: &str) -> Result<Vec<String>> {
         .build()?;
 
     let response = client.get(&wayback_url).send().await?.text().await?;
-    let re = Regex::new(r"^.?^.*=").unwrap();
-    let re2 = Regex::new(r"\b(\.jpg|\.png|\.js)\b").unwrap();
+    let param_regex = Regex::new(r".+=.*").unwrap();
+    let static_regex = Regex::new(r"\.(jpg|png|js)$").unwrap();
+    let replace_regex = Regex::new(r"=(.*)").unwrap();
 
     let mut urls = Vec::new();
     for line in response.lines() {
-        let lines = line.to_string();
-        let replace = OtherRegex::new(r"\=(.*)").unwrap();
-        let website = replace
-            .replace_all(&lines, "=PizzaHunt\">Bugbounty{{3*3}}")
-            .to_string();
-
-        if re.is_match(&website) && !re2.is_match(&website) {
-            urls.push(website);
+        let modified = replace_regex.replace_all(line, "=PizzaHunt\">Bugbounty{{3*3}}").to_string();
+        if param_regex.is_match(&modified) && !static_regex.is_match(&modified) {
+            urls.push(modified);
         }
     }
     Ok(urls)
 }
 
 fn deduplicate_urls(urls: Vec<String>) -> Vec<String> {
-    let unique_urls: BTreeSet<_> = urls.into_iter().collect();
-    unique_urls.into_iter().collect()
+    BTreeSet::from_iter(urls).into_iter().collect()
 }
 
-async fn analyze_urls(urls: Vec<String>) -> Result<()> {
-    let client = reqwest::Client::builder()
+async fn analyze_urls(urls: Vec<String>, proxy_url: Option<String>) -> Result<()> {
+    let client_builder = reqwest::Client::builder()
         .danger_accept_invalid_certs(true)
-        .user_agent("Mozilla/5.0 (Windows NT x.y; rv:10.0) Gecko/20100101 Firefox/10.0")
-        .build()?;
+        .user_agent("Mozilla/5.0 (Windows NT x.y; rv:10.0) Gecko/20100101 Firefox/10.0");
 
-    let mut live_sites = BufWriter::new(File::create("./analysis/live_sites.txt")?);
-    let mut xss = BufWriter::new(File::create("./analysis/XSS.txt")?);
-    let mut ssti = BufWriter::new(File::create("./analysis/SSTI.txt")?);
-    let mut redirects = BufWriter::new(File::create("./analysis/redirects.txt")?);
-    let mut mysql_errors = BufWriter::new(File::create("./analysis/MysqlOutput.txt")?);
-    let mut perl = BufWriter::new(File::create("./analysis/Perl.txt")?);
-    let mut cgi = BufWriter::new(File::create("./analysis/cgi.txt")?);
-    let mut errors = BufWriter::new(File::create("./analysis/error.txt")?);
-    let mut php_source = BufWriter::new(File::create("./analysis/phpsource.txt")?);
-    let mut binaries = BufWriter::new(File::create("./analysis/bins.txt")?);
-    let mut exec = BufWriter::new(File::create("./analysis/wtflol.txt")?);
-    let mut eval = BufWriter::new(File::create("./analysis/eval.txt")?);
+    let client = if let Some(proxy) = proxy_url {
+        client_builder.proxy(reqwest::Proxy::all(&proxy)?).build()?
+    } else {
+        client_builder.build()?
+    };
 
-    for website in urls {
-        let res = client.get(&website).send().await;
-        let res = match res {
-            Ok(v) => v,
-            Err(_) => continue,
-        };
+    let mut writers = [
+        ("live_sites.txt", None),
+        ("XSS.txt", Some("PizzaHunt\">Bugbounty")),
+        ("SSTI.txt", Some("Bugbounty9")),
+        ("redirects.txt", None),
+        ("MysqlOutput.txt", None),
+        ("Perl.txt", Some(".pl")),
+        ("cgi.txt", Some(".cgi")),
+        ("error.txt", Some("Error")),
+        ("phpsource.txt", Some("<?php")),
+        ("bins.txt", Some("-bin")),
+        ("wtflol.txt", Some("exec($_GET")),
+        ("eval.txt", Some("eval($_GET")),
+    ].iter().map(|(f, _)| {
+        BufWriter::new(OpenOptions::new().create(true).append(true).open(format!("./analysis/{}", f)).unwrap())
+    }).collect::<Vec<_>>();
 
-        if res.status() == 404 {
-            continue;
-        }
+    let sql_errors = [
+        "SQL syntax", "MariaDB server version", "syntax to use near", "SyntaxError",
+        "unterminated quoted string", "Microsoft Access Driver", "Access Database Engine",
+        "ORA-", "Oracle error", "Microsoft OLE DB", "CLI Driver", "DB2 SQL error",
+        "SQLite/JDBCDriver", "System.Data.SQLite.SQLiteException", "OLE DB", "odbc_"
+    ];
 
-        let body = res.text().await?;
-        writeln!(live_sites, "{}", website)?;
+    for url in urls {
+        let res = client.get(&url).send().await;
+        if let Ok(resp) = res {
+            if resp.status() == 404 {
+                continue;
+            }
+            let body = resp.text().await?;
+            writeln!(writers[0], "{}", url)?; // live_sites
 
-        if body.contains("PizzaHunt\">Bugbounty") {
-            writeln!(xss, "{}", website)?;
-            println!("XSS likely in {}", website);
-        }
-
-        if body.contains("Bugbounty9") {
-            writeln!(ssti, "{}", website)?;
-            println!("SSTI likely in {}", website);
-        }
-
-        let redirect_params = [
-            "next=", "url=", "target=", "rurl=", "dest=", "destination=", "redir=",
-            "redirect_uri=", "redirect_url=", "redirect=", "cgi-bin/redirect.cgi",
-            "view=", "loginto=", "image_url=", "go=", "return=", "returnTo=", "return_to=",
-            "checkout_url=", "continue=", "return_path=", "returnUrl="
-        ];
-
-        if redirect_params.iter().any(|&e| website.contains(e)) {
-            writeln!(redirects, "{}", website)?;
-            println!("Possible open redirect {}", website);
-        }
-
-        if website.contains(".pl") {
-            writeln!(perl, "{}", website)?;
-        }
-
-        if website.contains(".cgi") {
-            writeln!(cgi, "{}", website)?;
-        }
-
-        if body.contains("Error") {
-            writeln!(errors, "{}", website)?;
-        }
-
-        if body.contains("<?php") {
-            writeln!(php_source, "{}", website)?;
-        }
-
-        if website.contains("-bin") {
-            writeln!(binaries, "{}", website)?;
-        }
-
-        if body.contains("exec($_GET") || body.contains("exec($_POST") {
-            writeln!(exec, "{}", website)?;
-            println!("Potential command execution vulnerability at {}", website);
-        }
-        
-        if body.contains("eval($_GET") || body.contains("eval($_POST") {
-            writeln!(eval, "{}", website)?;
-            println!("Potential eval-based vulnerability at {}", website);
-        }
-
-        let sql_errors = [
-            "SQL syntax", "MariaDB server version", "syntax to use near", "SyntaxError",
-            "unterminated quoted string", "Microsoft Access Driver", "Access Database Engine",
-            "ORA-", "Oracle error", "Microsoft OLE DB", "CLI Driver", "DB2 SQL error",
-            "SQLite/JDBCDriver", "System.Data.SQLite.SQLiteException", "OLE DB", "odbc_"
-        ];
-
-        if sql_errors.iter().any(|e| body.contains(e)) {
-            writeln!(mysql_errors, "{}", website)?;
-            println!("SQL Error found in {}", website);
+            if body.contains("PizzaHunt\">Bugbounty") {
+                println!("{} {}", "[+] XSS found:".green(), url);
+                writeln!(writers[1], "{}", url)?;
+            }
+            if body.contains("Bugbounty9") {
+                println!("{} {}", "[+] SSTI found:".green(), url);
+                writeln!(writers[2], "{}", url)?;
+            }
+            if url.contains(".pl") {
+                writeln!(writers[5], "{}", url)?;
+            }
+            if url.contains(".cgi") {
+                writeln!(writers[6], "{}", url)?;
+            }
+            if body.contains("Error") {
+                writeln!(writers[7], "{}", url)?;
+            }
+            if body.contains("<?php") {
+                writeln!(writers[8], "{}", url)?;
+            }
+            if url.contains("-bin") {
+                writeln!(writers[9], "{}", url)?;
+            }
+            if body.contains("exec($_GET") || body.contains("exec($_POST") {
+                println!("{} {}", "[+] exec found:".green(), url);
+                writeln!(writers[10], "{}", url)?;
+            }
+            if body.contains("eval($_GET") || body.contains("eval($_POST") {
+                println!("{} {}", "[+] eval found:".green(), url);
+                writeln!(writers[11], "{}", url)?;
+            }
+            if sql_errors.iter().any(|e| body.contains(e)) {
+                let mut sql_writer = BufWriter::new(OpenOptions::new().create(true).append(true).open("./analysis/MysqlOutput.txt")?);
+                println!("{} {}", "[+] SQL error found:".green(), url);
+                writeln!(sql_writer, "{}", url)?;
+            }
         }
     }
-
     Ok(())
 }
