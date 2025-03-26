@@ -10,9 +10,14 @@ Scans for indications of an XSS vuln (Double quote escapes) , Oracle SQLi (ORA- 
 
 How to compile
 ```
-Install Rust using RustUp from https://rustup.rs/
+#Install Rust
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+
+#Dependencies
 sudo apt-get install pkg-config libssl-dev
 rustup update
+
+#Download and compile Pizzahunt
 git clone https://github.com/frostb1ten/PizzaHunt.git
 cd PizzaHunt
 cargo build --release
@@ -21,9 +26,10 @@ cd /target/release/
 
 How to run
 ```
-./PizzaHunt -s DOMAIN.com
-or
-./PizzaHunt -l list.txt
+Usage: PizzaHunt.exe -s <domain> OR -l <file> [--proxy <proxy_url>]
+Example: PizzaHunt.exe -s example.com
+Example: PizzaHunt.exe -l domains.txt
+Example: PizzaHunt.exe -s example.com --proxy http://127.0.0.1:8080
 ```
 
 <h2>Compiled version at https://github.com/frostb1ten/PizzaHunt/releases/</h2>
