@@ -6,11 +6,8 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-reqwest = "0.11.9"
-error-chain = "0.12.4"
-tokio = { version = "1.2.0", features = ["full"] }
-url = "2.2.2"
-regex = "1"
-ureq = "1.0"
-fancy-regex = "0.8.0"
-itertools = "0.10.3"
+reqwest = "0.12.15"
+tokio = { version = "1.44.1", features = ["rt-multi-thread", "macros", "net"] }
+regex = "1.11.1"
+anyhow = "1.0.97"
+colored = "3.0.0"
